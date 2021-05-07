@@ -1,0 +1,198 @@
+#-------------------------------------------------------------------------------
+# M.Sc. Hydrologie
+# Tracerhydrologie und Hydrochemie
+# Hausübung Dominik Pintilie
+# Matrikelnummer: 4312669
+#-------------------------------------------------------------------------------
+
+
+#-------------------------------------------------------------------------------
+# Packages & Funktionen
+#-------------------------------------------------------------------------------
+#Packages
+install.packages("tidyr")
+library(tidyr)
+library(tidyverse)
+
+#Funktionen (u.a. trotz fehlender Werte ausfuehren)
+meanNA <- function(x){mean(x, na.rm = TRUE)}
+minNA <- function(x){min(x, na.rm = TRUE)}
+maxNA <- function(x){max(x, na.rm = TRUE)}       
+sumMissing <- function(x){sum(is.na(x))}     
+
+
+#-------------------------------------------------------------------------------
+# Übung 1
+#-------------------------------------------------------------------------------
+
+# gegeben Isotopenwert delta_18_O_water = -15%, Temperatur = 12° = 285,15 K
+# gesucht: Isotopenwert Gas, Isotopenverhältnis Gas, Isotopenverhältnis Wasser
+
+# alpha_0_18_water bei 12°C berechnen
+ln_alpha <- 1.137 * (10^6 / 285.15^2) - 0.4156 * (10^3 / 285.15) - 2.0667
+alpha_0_18_water_vapor <- exp(ln_alpha/ (10^3))
+
+# delta_18_0_vapor berechene
+delta_0_18_vapor <- ((1000-15)/alpha_0_18_water_vapor)-1000
+
+# R_Probe_wasser berechnen
+R_standard <- 2005.5*(10^-6)
+R_Probe_wasser  <- (R_standard * -15)/1000 + R_standard
+
+# R_Probe_gas berechnen
+R_Probe_gas <- R_Probe_wasser / alpha_0_18_water_vapor  
+
+  
+
+#-------------------------------------------------------------------------------
+# Übung 2
+#-------------------------------------------------------------------------------
+
+# 1. 
+garmisch_18_O <- -11.17
+hohenpeißenberg_18_O <- -11.44
+garmisch_2_H <- (8.13*garmisch_18_O) + 10.8
+hohenpeißenberg_2_H <- 8.13*hohenpeißenberg_18_O + 10.8
+# ??? / 100m 2_H
+effekt_2_H <- ((hohenpeißenberg_2_H - garmisch_2_H) / (977-720)) * 100
+effekt_18_O <- ((hohenpeißenberg_18_O -garmisch_18_O) / (977-720)) * 100
+
+# 2.
+# Zugspitze
+garmisch_18_O + effekt_18_O * ((2970-720) / 100)
+garmisch_2_H + effekt_2_H * ((2970-720) / 100)
+
+# München
+garmisch_18_O + effekt_18_O * ((520-720) / 100)
+garmisch_2_H + effekt_2_H * ((520-720) / 100)
+
+
+#-------------------------------------------------------------------------------
+# Übung 4
+#-------------------------------------------------------------------------------
+# Daten einlesen
+data <- data.frame("date" = seq(from = as.POSIXct("2000-08-12 12:00:00"),
+                                to =as.POSIXct("2000-08-13 12:00:00") ,
+                                by = "hour"), "Q" = NA , "d18O" = NA)
+
+data$Q <- c(rep(2.5,5),4,6.2,8.5,9,8,6,6,rep(5,6),rep(3.7,6),3)
+
+data$d18O <- c(rep(-10.9,5),-11.2,-11.35,-11.6,-11.7,-11.4,-11.3,-11.3,
+               rep(-11.2,6),rep(-11.1,6),-11)
+data[c(1,5:11,13,19,25),]
+
+# Anteile berechnen
+d18O_bf <- -10.9
+d18O_rw <- -12
+
+data$baseflow_perc <- (data$d18O-(-12))/(-10.9-(-12))
+data$Q_bf <- data$baseflow_perc*data$Q
+data$Q_direkt <- data$Q - data$Q_bf
+
+# finaler Dataframe
+new_data <- data[c(1,5:11,13,19,25),]
+head(new_data)
+
+#plot
+dev.off()
+par(mar = c(5, 6, 4, 4), cex.main = 3, cex.lab  = 2, cex.axis = 2, lwd = 2)
+plot(x=new_data$date,y=new_data$Q, type = "l",ylab="Abfluss [m³/s]",xlab="Uhrzeit",main="Hydrographseperation Alpen 12-13.08.2000 ",ylim=c(0,10))
+lines(new_data$date,new_data$Q_bf,col="red")
+lines(new_data$date,new_data$Q_direkt,col="blue")
+legend("topright",inset = c(-0.5,0.03),legend=c("Abfluss","Basisabfluss","Event-Wasser","d18O")
+       ,col =c("black","red","blue","black"),cex=1.5, bty = "n",
+       y.intersp = 0.1, x.intersp = 0.5, lty = c(1,1,1,NA),
+       seg.len = 0.5, pch = c(NA,NA,NA,1), pt.cex = 2, lwd = 2)
+
+par(new=T)
+plot(y=new_data$d18O,x=new_data$date, type = "p", axes = FALSE, bty = "n", xlab = "", ylab = "")
+axis(side=4)
+mtext(expression(paste(delta^2, "H [‰]")),side = 4,line = 3.1, cex = 2)
+
+#-------------------------------------------------------------------------------
+# Übung 5
+#-------------------------------------------------------------------------------
+# Daten einlesen
+pfad <- "C:/Users/domin/OneDrive - bwedu/Master/2. Semester/Tracerhydrologie/1. Woche/data philipines.csv"
+data <- read.csv(pfad,sep=";", dec=",")
+
+
+# Verschiedene Waterpools
+data_soil <- subset(data, Type.of.water=="Soil water")
+data_ground <- subset(data, Type.of.water=="Groundwater")
+data_rain <- subset(data, Type.of.water=="Rain water")
+data_surface <- subset(data, Type.of.water=="Surface Water")
+data_plant <- subset(data, Type.of.water=="Plant water")
+data_irr <- subset(data, Type.of.water=="Irrigation water")
+
+# Plot
+
+par(mar = c(5, 6, 5, 5), cex.main = 3, cex.lab  = 2, cex.axis = 2)
+plot(cex = 2,data_soil$Î.18O..â...,data_soil$Î.2H..â..., pch=18,col=2,ylim=c(-43,20),xlim=c(-6,6),
+     ylab=expression(paste(delta^2, "H [‰]")),xlab=expression(paste(delta^18, "O [‰]")),main="Wasserpools - Dual Isotope Plot")
+points(cex = 2,data_ground$Î.18O..â..., data_ground$Î.2H..â..., pch=19,col=3)
+points(cex = 2,data_rain$Î.18O..â..., data_rain$Î.2H..â..., pch=20,col=4)
+points(cex = 2,data_surface$Î.18O..â..., data_surface$Î.2H..â..., pch=17,col=7)
+points(cex = 2,data_plant$Î.18O..â..., data_plant$Î.2H..â..., pch=16,col="black")
+points(cex = 2,data_irr$Î.18O..â..., data_irr$Î.2H..â..., pch=15,col="darkblue")
+points(cex = 2,data_soil$Î.18O..â...,data_soil$Î.2H..â..., pch=18,col=2)
+# evaporation lines
+abline(lwd = 2,lm(data_soil$Î.2H..â... ~ data_soil$Î.18O..â... ), lty=2,col=2)
+abline(lwd = 2,lm(data_ground$Î.2H..â... ~ data_ground$Î.18O..â...), lty=3,col=3)
+abline(lwd = 2,lm(data_surface$Î.2H..â...~ data_surface$Î.18O..â...), lty=5,col=7)
+abline(lwd = 2,lm(data_plant$Î.2H..â...~ data_plant$Î.18O..â...), lty=6,col="black")
+
+
+# GMWL
+abline(10.8,8.13,lty=1, lwd = 2, col = 6)
+# LMWL
+abline(lm(data$Î.2H.LMWL ~ data$Î.18O.LMWL), lwd = 2)
+
+# Legenden
+legend("topleft",bty="n",legend=c("LMWL","GMWL","EL-Soil","EL-Ground","EL-Surface","EL-Plant"),
+       lty=c(1,1,2,3,5,6),col=c("black",6,2,3,7,"black"),
+       cex= 1.5, pt.cex = 0.5, inset = c(-0.05, -0.4),
+       lwd = 3, y.intersp = 0.08, x.intersp = 0.2, seg.len = 0.5)
+
+legend("topleft",bty="n",legend=c("Soil water","Groundwater","Rain water",
+                                      "Surface water","Plant water","Irrigation water"),
+       col=c(2,3,4,7,"black","darkblue"), pch = c(18,19,20,17,16,15),
+       cex= 1.5, pt.cex = 2, inset = c(0.65, 0.1),
+       lwd = 3, y.intersp = 0.08, x.intersp = -0.7, lty = NA)
+
+   
+# Evaporation Lines und Geradengleichungen
+summary(lm(data$Î.2H.LMWL ~ data$Î.18O.LMWL))
+summary(lm(data_soil$Î.2H..â... ~ data_soil$Î.18O..â... ))
+summary(lm(data_ground$Î.2H..â... ~ data_ground$Î.18O..â...))
+summary(lm(data_surface$Î.2H..â...~ data_surface$Î.18O..â...))
+summary(lm(data_plant$Î.2H..â...~ data_plant$Î.18O..â...))
+
+
+#-------------------------------------------------------------------------------
+# Soil Plot
+
+c_3 <- subset(data_soil, Field.name=="3C")
+c_3$Soil.depth..cm. <- c_3$Soil.depth..cm. * -1
+s_5 <- subset(data_soil, Field.name=="5S")
+s_5$Soil.depth..cm. <- s_5$Soil.depth..cm. * -1
+c_7 <- subset(data_soil, Field.name=="7C")
+c_7$Soil.depth..cm. <- c_7$Soil.depth..cm. * -1
+
+# Plot
+par(mar = c(5, 6, 5, 5),mfrow = c(1,3), cex.main = 3, 
+    cex.lab  = 2, cex.axis = 2, lwd = 2)
+
+plot(c_3$Soil.depth..cm.~c_3$Water.content....,ylab="Soil depth [cm]",xlab="water content [%]",type="b", lwd = 2)
+plot(c_3$Soil.depth..cm.~c_3$Î.2H..â...,ylab="",yaxt="n",xlab=expression(paste(delta^2, "H [‰]")),type="b",main="Field 3C")
+plot(c_3$Soil.depth..cm.~c_3$Î.18O..â...,ylab="",yaxt="n",xlab=expression(paste(delta^18, "O [‰]")),type="b")
+
+plot(s_5$Soil.depth..cm.~s_5$Water.content....,ylab="Soil depth [cm]",xlab="water content [%]",type="b")
+plot(s_5$Soil.depth..cm.~s_5$Î.2H..â...,ylab="",yaxt="n",xlab=expression(paste(delta^2, "H [‰]")),type="b",main="Field 5S")
+plot(s_5$Soil.depth..cm.~s_5$Î.18O..â...,ylab="",yaxt="n",xlab=expression(paste(delta^18, "O [‰]")),type="b")
+
+plot(c_7$Soil.depth..cm.~c_7$Water.content....,ylab="Soil depth [cm]",xlab="water content [%]",type="b")
+plot(c_7$Soil.depth..cm.~c_7$Î.2H..â...,ylab="",yaxt="n",xlab=expression(paste(delta^2, "H [‰]")),type="b",main="Field 7C")
+plot(c_7$Soil.depth..cm.~c_7$Î.18O..â...,ylab="",yaxt="n",xlab=expression(paste(delta^18, "O [‰]")),type="b")
+
+
